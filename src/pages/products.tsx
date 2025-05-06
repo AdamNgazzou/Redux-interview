@@ -13,7 +13,15 @@ import { useMediaQuery } from "~/hooks/use-media-query"
 
 import { useDispatch, useSelector } from "react-redux"
 import { toggleCategory, initializeCategories } from "~/store/filter-slice"
-import { setCurrentPage, setItemsPerPage } from "~/store/pagination-slice"
+import {
+  setCurrentPage,
+  setItemsPerPage,
+  setTotalItems,
+  nextPage,
+  prevPage,
+  firstPage,
+  lastPage,
+} from "~/store/pagination-slice"
 
 import type { RootState } from "~/store"
 
@@ -23,16 +31,18 @@ const ProductsPage: NextPage = () => {
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<string[]>([])
-  const selectedCategories = useSelector((state: RootState) => state.filter.selectedCategories)
-  const initialized = useSelector((state: RootState) => state.filter.initialized)
-  const currentPage = useSelector((state: RootState) => state.pagination.currentPage)
-  const itemsPerPage = useSelector((state: RootState) => state.pagination.itemsPerPage)
   const [loading, setLoading] = useState(true)
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
+
+  // Redux state selectors
+  const selectedCategories = useSelector((state: RootState) => state.filter.selectedCategories)
+  const initialized = useSelector((state: RootState) => state.filter.initialized)
+  const { currentPage, itemsPerPage, totalPages } = useSelector((state: RootState) => state.pagination)
 
   // Use the hook to check if we're on mobile
   const isMobile = useMediaQuery("(max-width: 768px)")
 
+  // Load products and initialize categories
   useEffect(() => {
     const loadProducts = async () => {
       try {
@@ -40,6 +50,9 @@ const ProductsPage: NextPage = () => {
         const data = await fetchProducts
         setProducts(data)
         setFilteredProducts(data)
+
+        // Update total items in pagination state
+        dispatch(setTotalItems(data.length))
 
         const uniqueCategories = Array.from(new Set(data.map((product) => product.category)))
         setCategories(uniqueCategories)
@@ -58,13 +71,17 @@ const ProductsPage: NextPage = () => {
     loadProducts()
   }, [dispatch, initialized])
 
+  // Filter products when selected categories or products change
   useEffect(() => {
     let result = [...products]
     if (selectedCategories.length > 0) {
       result = result.filter((product) => selectedCategories.includes(product.category))
     }
     setFilteredProducts(result)
-  }, [selectedCategories, products])
+
+    // Update total items in pagination state when filtered results change
+    dispatch(setTotalItems(result.length))
+  }, [selectedCategories, products, dispatch])
 
   const handleClearFilters = () => {
     categories.forEach((category) => {
@@ -77,31 +94,31 @@ const ProductsPage: NextPage = () => {
   }
 
   const handleRemoveProduct = (productId: number) => {
-    const updatedProducts = products.filter((product) => Number(product.id) !== productId);
-    setProducts(updatedProducts);
-  
+    const updatedProducts = products.filter((product) => Number(product.id) !== productId)
+    setProducts(updatedProducts)
+
     // Update categories if all products of a category are removed
-    const remainingCategories = Array.from(new Set(updatedProducts.map((product) => product.category)));
-    setCategories(remainingCategories);
-  
-    // Filter the products again using current selected categories
-    const updatedFiltered = selectedCategories.length > 0
-      ? updatedProducts.filter((product) => selectedCategories.includes(product.category))
-      : updatedProducts;
-  
-    setFilteredProducts(updatedFiltered);
-  
-    // Adjust the current page if the filtered products are empty
-    const indexOfLast = currentPage * itemsPerPage;
-    const indexOfFirst = indexOfLast - itemsPerPage;
-    const currentPageProducts = updatedFiltered.slice(indexOfFirst, indexOfLast);
-  
-    if (currentPageProducts.length === 0 && currentPage > 1) {
-      dispatch(setCurrentPage(currentPage - 1));
+    const remainingCategories = Array.from(new Set(updatedProducts.map((product) => product.category)))
+    setCategories(remainingCategories)
+
+  // Remove selected categories that are no longer present
+  selectedCategories.forEach((category) => {
+    if (!remainingCategories.includes(category)) {
+      dispatch(toggleCategory(category)) // Deselect category in Redux
     }
-  };
-  
-  
+  })
+    // Filter the products again using current selected categories
+    const updatedFiltered =
+      selectedCategories.length > 0
+        ? updatedProducts.filter((product) => selectedCategories.includes(product.category))
+        : updatedProducts
+
+    setFilteredProducts(updatedFiltered)
+
+
+    // Update total items in pagination state
+    dispatch(setTotalItems(updatedFiltered.length))
+  }
 
   const handleToggleInteraction = (
     productId: number,
@@ -141,11 +158,14 @@ const ProductsPage: NextPage = () => {
     )
   }
 
-  // Calculate pagination
+  // Calculate current page products
   const indexOfLastProduct = currentPage * itemsPerPage
   const indexOfFirstProduct = indexOfLastProduct - itemsPerPage
   const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct)
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
+
+  // Calculate pagination range for display
+  const startItem = filteredProducts.length > 0 ? indexOfFirstProduct + 1 : 0
+  const endItem = Math.min(indexOfLastProduct, filteredProducts.length)
 
   return (
     <>
@@ -189,6 +209,13 @@ const ProductsPage: NextPage = () => {
             </div>
           ) : (
             <>
+              {/* Results summary */}
+              {!loading && filteredProducts.length > 0 && (
+                <div className="mb-4 text-sm text-muted-foreground">
+                  Showing {startItem} to {endItem} of {filteredProducts.length} products
+                </div>
+              )}
+
               {filteredProducts.length > 0 ? (
                 <>
                   <ProductGrid
@@ -202,6 +229,10 @@ const ProductsPage: NextPage = () => {
                     itemsPerPage={itemsPerPage}
                     onPageChange={(page) => dispatch(setCurrentPage(page))}
                     onItemsPerPageChange={(count) => dispatch(setItemsPerPage(count))}
+                    onNextPage={() => dispatch(nextPage())}
+                    onPrevPage={() => dispatch(prevPage())}
+                    onFirstPage={() => dispatch(firstPage())}
+                    onLastPage={() => dispatch(lastPage())}
                   />
                 </>
               ) : (
