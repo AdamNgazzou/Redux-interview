@@ -25,7 +25,7 @@ export default function Pagination({
   onFirstPage,
   onLastPage,
 }: PaginationProps) {
-  const itemsPerPageOptions = [4, 8, 12, 16]
+  const itemsPerPageOptions = [4, 8, 12]
 
   // Handle direct page navigation
   const handlePageChange = (page: number) => {

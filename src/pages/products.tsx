@@ -210,13 +210,13 @@ const ProductsPage: NextPage = () => {
           ) : (
             <>
               {/* Results summary */}
-              {!loading && filteredProducts.length > 0 && (
+              {!loading && filteredProducts.length > 0 && selectedCategories.length >0  && (
                 <div className="mb-4 text-sm text-muted-foreground">
                   Showing {startItem} to {endItem} of {filteredProducts.length} products
                 </div>
               )}
 
-              {filteredProducts.length > 0 ? (
+              {selectedCategories.length >0 ? (
                 <>
                   <ProductGrid
                     products={currentProducts}
@@ -237,13 +237,17 @@ const ProductsPage: NextPage = () => {
                 </>
               ) : (
                 <div className="bg-white dark:bg-card rounded-xl shadow-md p-6 sm:p-10 text-center border border-border">
-                  <p className="text-lg text-muted-foreground mb-4">No products found. Try adjusting your filters.</p>
-                  <button
-                    onClick={handleClearFilters}
-                    className="px-4 py-2 rounded-lg text-sm font-medium gradient-bg text-white shadow-md transition-all duration-200"
-                  >
-                    Clear Filters
-                  </button>
+                  {filteredProducts.length > 0 ? (
+                    <>
+                      <p className="text-lg text-muted-foreground mb-4">No products found. Try adjusting your filters.</p>
+                      <button
+                        onClick={handleClearFilters}
+                        className="px-4 py-2 rounded-lg text-sm font-medium gradient-bg text-white shadow-md transition-all duration-200"
+                      >
+                        Select all Filters
+                      </button></>) : ( 
+                        <p className="text-lg text-muted-foreground mb-4">No products found.</p>
+                      )}
                 </div>
               )}
             </>
