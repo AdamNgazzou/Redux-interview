@@ -1,32 +1,34 @@
+"use client"
+
 import Pagination from "~/components/pagination"
 import type { NextPage } from "next"
-import React, { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import CategoryFilter from "~/components/category-filter"
 import MobileBottomNav from "~/components/mobile-bottom-nav"
 import MobileFilterDrawer from "~/components/mobile-filter-drawer"
 import MobileNavbar from "~/components/mobile-navbar"
 import ProductGrid from "~/components/product-grid"
-import { Product, products as fetchProducts } from "~/data/products"
+import { type Product, products as fetchProducts } from "~/data/products"
 import { useMediaQuery } from "~/hooks/use-media-query"
 
-import { useDispatch, useSelector } from "react-redux";
-import { toggleCategory,clearCategories } from "~/store/filter-slice";
-import { RootState } from "~/store"; 
+import { useDispatch, useSelector } from "react-redux"
+import { toggleCategory, initializeCategories } from "~/store/filter-slice"
+import { setCurrentPage, setItemsPerPage } from "~/store/pagination-slice"
 
-
+import type { RootState } from "~/store"
 
 const ProductsPage: NextPage = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch()
 
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<string[]>([])
-  const selectedCategories = useSelector((state: RootState) => state.filter.selectedCategories);
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(8)
+  const selectedCategories = useSelector((state: RootState) => state.filter.selectedCategories)
+  const initialized = useSelector((state: RootState) => state.filter.initialized)
+  const currentPage = useSelector((state: RootState) => state.pagination.currentPage)
+  const itemsPerPage = useSelector((state: RootState) => state.pagination.itemsPerPage)
   const [loading, setLoading] = useState(true)
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
-
 
   // Use the hook to check if we're on mobile
   const isMobile = useMediaQuery("(max-width: 768px)")
@@ -34,62 +36,105 @@ const ProductsPage: NextPage = () => {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        setLoading(true);
-        const data = await fetchProducts;
-        setProducts(data);
-        setFilteredProducts(data);
+        setLoading(true)
+        const data = await fetchProducts
+        setProducts(data)
+        setFilteredProducts(data)
 
-        const uniqueCategories = Array.from(new Set(data.map((product) => product.category)));
-        setCategories(uniqueCategories);
+        const uniqueCategories = Array.from(new Set(data.map((product) => product.category)))
+        setCategories(uniqueCategories)
+
+        // Initialize all categories as selected if not already initialized
+        if (!initialized && uniqueCategories.length > 0) {
+          dispatch(initializeCategories(uniqueCategories))
+        }
       } catch (error) {
-        console.error("Failed to fetch products:", error);
+        console.error("Failed to fetch products:", error)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-
-    loadProducts();
-  }, []);
-  
-  useEffect(() => {
-    let result = [...products];
-    if (selectedCategories.length > 0) {
-      result = result.filter((product) => selectedCategories.includes(product.category));
     }
-    setFilteredProducts(result);
-  }, [selectedCategories, products]);
+
+    loadProducts()
+  }, [dispatch, initialized])
+
+  useEffect(() => {
+    let result = [...products]
+    if (selectedCategories.length > 0) {
+      result = result.filter((product) => selectedCategories.includes(product.category))
+    }
+    setFilteredProducts(result)
+  }, [selectedCategories, products])
 
   const handleClearFilters = () => {
     categories.forEach((category) => {
       if (!selectedCategories.includes(category)) {
-        dispatch(toggleCategory(category));  // Only add category if it's not already selected
+        dispatch(toggleCategory(category)) // Only add category if it's not already selected
       }
-    })   
-    setFilteredProducts(products);
-    setCurrentPage(1);
-  };
-  
-  const handleRemoveProduct = (productId: number) => {
-    const updatedProducts = products.filter((product) => Number(product.id) !== productId)
-    setProducts(updatedProducts)
-
-    // Update categories if all products of a category are removed
-    const remainingCategories = Array.from(new Set(updatedProducts.map((product) => product.category)))
-    setCategories(remainingCategories)
-
-    // Update selected categories if a category no longer exists
-    //setSelectedCategories((prev) => prev.filter((cat) => remainingCategories.includes(cat)))
+    })
+    setFilteredProducts(products)
+    dispatch(setCurrentPage(1))
   }
 
-  const handleToggleLike = (productId: number, liked: boolean) => {
+  const handleRemoveProduct = (productId: number) => {
+    const updatedProducts = products.filter((product) => Number(product.id) !== productId);
+    setProducts(updatedProducts);
+  
+    // Update categories if all products of a category are removed
+    const remainingCategories = Array.from(new Set(updatedProducts.map((product) => product.category)));
+    setCategories(remainingCategories);
+  
+    // Filter the products again using current selected categories
+    const updatedFiltered = selectedCategories.length > 0
+      ? updatedProducts.filter((product) => selectedCategories.includes(product.category))
+      : updatedProducts;
+  
+    setFilteredProducts(updatedFiltered);
+  
+    // Adjust the current page if the filtered products are empty
+    const indexOfLast = currentPage * itemsPerPage;
+    const indexOfFirst = indexOfLast - itemsPerPage;
+    const currentPageProducts = updatedFiltered.slice(indexOfFirst, indexOfLast);
+  
+    if (currentPageProducts.length === 0 && currentPage > 1) {
+      dispatch(setCurrentPage(currentPage - 1));
+    }
+  };
+  
+  
+
+  const handleToggleInteraction = (
+    productId: number,
+    prevStatus: "liked" | "disliked" | "none",
+    action: "like" | "dislike",
+  ) => {
     setProducts((prevProducts) =>
       prevProducts.map((product) => {
         if (Number(product.id) === productId) {
-          return {
-            ...product,
-            likes: liked ? product.likes + 1 : Math.max(0, product.likes - 1),
-            dislikes: liked ? Math.max(0, product.dislikes - 1) : product.dislikes + 1,
+          let likes = product.likes
+          let dislikes = product.dislikes
+
+          if (action === "like") {
+            if (prevStatus === "liked") {
+              likes = Math.max(0, likes - 1) // remove like
+            } else if (prevStatus === "disliked") {
+              dislikes = Math.max(0, dislikes - 1)
+              likes += 1 // switch from dislike to like
+            } else {
+              likes += 1 // add like
+            }
+          } else if (action === "dislike") {
+            if (prevStatus === "disliked") {
+              dislikes = Math.max(0, dislikes - 1) // remove dislike
+            } else if (prevStatus === "liked") {
+              likes = Math.max(0, likes - 1)
+              dislikes += 1 // switch from like to dislike
+            } else {
+              dislikes += 1 // add dislike
+            }
           }
+
+          return { ...product, likes, dislikes }
         }
         return product
       }),
@@ -110,10 +155,7 @@ const ProductsPage: NextPage = () => {
           <MobileNavbar title="Product Showcase" onFilterClick={() => setIsFilterDrawerOpen(true)} />
 
           <MobileFilterDrawer isOpen={isFilterDrawerOpen} onClose={() => setIsFilterDrawerOpen(false)}>
-            <CategoryFilter
-              categories={categories}
-              isMobile={true}
-            />
+            <CategoryFilter categories={categories} isMobile={true} />
           </MobileFilterDrawer>
 
           <MobileBottomNav />
@@ -136,10 +178,9 @@ const ProductsPage: NextPage = () => {
 
           {/* Category filter only visible on desktop */}
           {!isMobile && (
-            <CategoryFilter
-              categories={categories}
-            />
-          
+            <div className="mb-6">
+              <CategoryFilter categories={categories} />
+            </div>
           )}
 
           {loading ? (
@@ -153,15 +194,14 @@ const ProductsPage: NextPage = () => {
                   <ProductGrid
                     products={currentProducts}
                     onRemove={handleRemoveProduct}
-                    onToggleLike={handleToggleLike}
+                    handleToggleInteraction={handleToggleInteraction}
                   />
-
                   <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
                     itemsPerPage={itemsPerPage}
-                    onPageChange={setCurrentPage}
-                    onItemsPerPageChange={setItemsPerPage}
+                    onPageChange={(page) => dispatch(setCurrentPage(page))}
+                    onItemsPerPageChange={(count) => dispatch(setItemsPerPage(count))}
                   />
                 </>
               ) : (
@@ -171,7 +211,7 @@ const ProductsPage: NextPage = () => {
                     onClick={handleClearFilters}
                     className="px-4 py-2 rounded-lg text-sm font-medium gradient-bg text-white shadow-md transition-all duration-200"
                   >
-                    Clear Filters1
+                    Clear Filters
                   </button>
                 </div>
               )}
@@ -181,7 +221,6 @@ const ProductsPage: NextPage = () => {
       </main>
     </>
   )
-
 }
 
 export default ProductsPage

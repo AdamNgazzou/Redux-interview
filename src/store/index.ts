@@ -6,23 +6,26 @@ import likeReducer, {LikeState} from "./like-slice";
 import { persistReducer, persistStore } from "redux-persist"
 import storage from "redux-persist/lib/storage"
 import thunk from "redux-thunk"
+import paginationReducer,{ PaginationState } from "./pagination-slice";
 
 export interface RootState {
   counter: CounterState
   filter: FiltersState
   likes: LikeState
+  pagination:PaginationState
 }
 
 const rootReducer = combineReducers({
   counter: counterSlice,
   filter: filtersReducer,
   likes: likeReducer,
+  pagination: paginationReducer,
 })
 
 const persistConfig = {
   key: 'root',
   storage,
-  whitelist: ['filter','like'], // Only persist the 'filter' slice
+  whitelist: ['likes'], // Only persist the 'filter' slice
 
 }
 

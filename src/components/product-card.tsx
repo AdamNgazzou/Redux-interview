@@ -3,34 +3,54 @@
 import { useState } from "react"
 import { ThumbsUp, ThumbsDown, Trash2 } from "lucide-react"
 import { Product } from "~/data/products"
+import { removeLike, likeProduct, disLikeProduct } from "~/store/like-slice"
+import { useDispatch, useSelector } from "react-redux";
+
 
 interface ProductCardProps {
   product: Product
   onRemove: (id: number) => void
-  onToggleLike: (id: number, liked: boolean) => void
+  handleToggleInteraction: (id: number, prevStatus: "liked" | "disliked" | "none", action: "like" | "dislike") => void
 }
 
-export default function ProductCard({ product, onRemove, onToggleLike }: ProductCardProps) {
-  const [userLiked, setUserLiked] = useState<boolean | null>(null)
+export default function ProductCard({ product, onRemove, handleToggleInteraction  }: ProductCardProps) {
+  const dispatch = useDispatch()
+  const likeStatus = useSelector((state : any) => state.likes[product.id] ?? "none")
+
   const [isAnimating, setIsAnimating] = useState(false)
 
   const totalInteractions = product.likes + product.dislikes
   const likePercentage = totalInteractions > 0 ? (product.likes / totalInteractions) * 100 : 50
 
   const handleLike = () => {
-    const newLiked = userLiked !== true
-    setUserLiked(newLiked ? true : null)
-    onToggleLike(Number(product.id), newLiked)
     animateInteraction()
-  }
-
+    if (likeStatus === "liked") {
+      dispatch(removeLike(product.id.toString()));
+      handleToggleInteraction(Number(product.id), "liked", "like");
+    } else if (likeStatus === "disliked") {
+      dispatch(likeProduct(product.id.toString()));
+      handleToggleInteraction(Number(product.id), "disliked", "like");
+    } else {
+      dispatch(likeProduct(product.id.toString()));
+      handleToggleInteraction(Number(product.id), "none", "like");
+    }
+  };
+  
   const handleDislike = () => {
-    const newDisliked = userLiked !== false
-    setUserLiked(newDisliked ? false : null)
-    onToggleLike(Number(product.id), !newDisliked)
     animateInteraction()
-  }
+    if (likeStatus === "disliked") {
+      dispatch(removeLike(product.id.toString()));
+      handleToggleInteraction(Number(product.id), "disliked", "dislike");
+    } else if (likeStatus === "liked") {
+      dispatch(disLikeProduct(product.id.toString()));
+      handleToggleInteraction(Number(product.id), "liked", "dislike");
+    } else {
+      dispatch(disLikeProduct(product.id.toString()));
+      handleToggleInteraction(Number(product.id), "none", "dislike");
+    }
+  };
 
+  
   const animateInteraction = () => {
     setIsAnimating(true)
     setTimeout(() => setIsAnimating(false), 300)
@@ -78,26 +98,26 @@ export default function ProductCard({ product, onRemove, onToggleLike }: Product
           <button
             onClick={handleLike}
             className={`flex items-center justify-center space-x-1.5 px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 min-h-10 ${
-              userLiked === true
+              likeStatus === "liked"
                 ? "bg-primary text-primary-foreground shadow-md"
                 : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
             }`}
             aria-label="Like product"
           >
-            <ThumbsUp size={16} className={userLiked === true ? "animate-pulse-once" : ""} />
+            <ThumbsUp size={16} className={likeStatus === "liked" ? "animate-pulse-once" : ""} />
             <span className="text-sm sm:text-base">Like</span>
           </button>
 
           <button
             onClick={handleDislike}
             className={`flex items-center justify-center space-x-1.5 px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 min-h-10 ${
-              userLiked === false
+              likeStatus === "disliked"
                 ? "bg-destructive text-destructive-foreground shadow-md"
                 : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
             }`}
             aria-label="Dislike product"
           >
-            <ThumbsDown size={16} className={userLiked === false ? "animate-pulse-once" : ""} />
+            <ThumbsDown size={16} className={likeStatus === "disliked" ? "animate-pulse-once" : ""} />
             <span className="text-sm sm:text-base">Dislike</span>
           </button>
         </div>
