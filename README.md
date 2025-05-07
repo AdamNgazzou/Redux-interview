@@ -1,6 +1,6 @@
 # 🚀 Product Showcase – Take-Home Interview Project
 
-![Product Showcase](https://placeholder.com/your-project-screenshot.png)
+![Product Showcase](https://i.imgur.com/YWTknba.png)
 
 ## Project Overview
 
