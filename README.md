@@ -1,4 +1,4 @@
-# Product Showcase - Take-Home Interview Project
+# 🚀 Product Showcase – Take-Home Interview Project
 
 ![Product Showcase](https://placeholder.com/your-project-screenshot.png)
 
