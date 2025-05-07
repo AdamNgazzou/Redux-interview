@@ -96,7 +96,7 @@ The application is optimized for performance through:
 
 ### Lighthouse Performance Metrics
 
-[Include Lighthouse performance metrics image here](https://i.imgur.com/Gow1fug.png)
+![LightHouse](https://i.imgur.com/Gow1fug.png)
 
 ## Technologies Used
 
