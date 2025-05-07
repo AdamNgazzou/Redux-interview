@@ -129,15 +129,21 @@ Follow these steps to set up the project locally:
    npm install --legacy-peer-deps
 
    ```
+3. **Setup .env file**
 
-3. **Start the development server bash**
+   ```bash
+   NEXT_PUBLIC_SITE_URL="http://localhost:3000/"
+
+   ```
+
+4. **Start the development server bash**
 
    ```bash
    npm run dev
 
    ```
 
-4. **Open the application in your browser**
+5. **Open the application in your browser**
    Navigate to http://localhost:3000 to view the app.
 
 ⚠️ If you encounter peer dependency warnings, the --legacy-peer-deps flag helps bypass them during installation.
