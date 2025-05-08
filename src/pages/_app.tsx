@@ -9,7 +9,6 @@ import SEOConfig from "~/config/seo-config"
 function App({ Component, pageProps }: AppProps) {
   return (
     <Provider store={store}>
-      <PersistGate loading={null} persistor={persistor}>
         <DefaultSeo {...SEOConfig} />
           <OrganizationJsonLd
             type="Corporation"
@@ -41,7 +40,6 @@ function App({ Component, pageProps }: AppProps) {
             url={process.env.NEXT_PUBLIC_SITE_URL || ""}
           />
         <Component {...pageProps} />
-      </PersistGate>
     </Provider>
   )
 }
